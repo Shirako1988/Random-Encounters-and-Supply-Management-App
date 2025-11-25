@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Random Encounters — Spieltisch-Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'bg-primary': '#0f1724',
+              'bg-secondary': '#071022',
+              'card': '#0b1220',
+              'muted': '#9aa6b2',
+              'accent': '#7dd3fc',
+              'good': '#34d399',
+              'bad': '#fb7185',
+              'glass': 'rgba(255, 255, 255, 0.03)',
+              'border-color': 'rgba(255, 255, 255, 0.04)',
+              'input-bg': 'rgba(255, 255, 255, 0.08)'
+            }
+          }
+        }
+      }
+    </script>
+    <!-- React via CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel Standalone for JSX compilation in browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body class="bg-gradient-to-b from-bg-secondary to-[#07182a] text-[#e6eef6] font-sans antialiased">
+    <div id="root"></div>
+    <!-- Single entry point for all application code -->
+    <script type="text/babel" src="index.tsx"></script>
+  </body>
+</html>

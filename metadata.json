@@ -1,0 +1,5 @@
+{
+  "name": "Random Encounters — Spieltisch-Tool",
+  "description": "Ein Tool für Spielleiter zur Generierung und Verwaltung von zufälligen Begegnungen für Tabletop-Rollenspiele, basierend auf Gelände, Tempo und einer anpassbaren Wahrscheinlichkeitsmatrix.",
+  "requestFramePermissions": []
+}
