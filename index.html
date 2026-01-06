@@ -42,13 +42,6 @@
       const { createRoot } = ReactDOM;
 
       // ==========================================
-      // TYPES
-      // ==========================================
-
-      // (Types are purely for Babel/TS parsing in the browser, they are stripped at runtime)
-      // Note: In Babel Standalone with TypeScript enabled, interfaces work fine inside this script tag.
-
-      // ==========================================
       // CONSTANTS
       // ==========================================
 
@@ -95,6 +88,7 @@
           'Gargantuan': { food: 64,   water: 64,   feed: 16.0 }  
       };
 
+      const FEED_WEIGHT_LB = 10; // 1 Unit feed = 10 lbs
 
       // ==========================================
       // HELPER FUNCTIONS
@@ -108,12 +102,10 @@
           return isNaN(num) ? 0 : num;
       };
 
-
       // ==========================================
       // COMPONENTS
       // ==========================================
 
-      // --- Modal Component ---
       const Modal = ({ config, onClose }) => {
           if (!config.isOpen) return null;
 
@@ -148,7 +140,6 @@
           );
       };
 
-      // --- SettingsCard ---
       const SettingsCard = ({ settings, setSettings, onTravelRoll, onRestRoll, onResetAll }) => {
           const handleSettingsChange = (key, value) => {
               setSettings(prev => ({ ...prev, [key]: value }));
@@ -183,7 +174,7 @@
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                           <label className="block text-sm text-muted mb-1">Gelände / Situation</label>
-                          <select value={settings.terrain} onChange={e => handleSettingsChange('terrain', e.target.value)} className="w-full p-2 rounded-lg border border-border-color bg-input-bg text-white focus:ring-accent focus:border-accent">
+                          <select value={settings.terrain} onChange={e => handleSettingsChange('terrain', e.target.value)} className="w-full p-2 rounded-lg border border-border-color bg-bg-secondary text-white focus:ring-accent focus:border-accent">
                               <option value="road">Straße (zivilisiert)</option>
                               <option value="wilderness">Abseits der Straße (Wildnis)</option>
                               <option value="unknown">Unbekanntes Gebiet</option>
@@ -195,7 +186,7 @@
                       <div className="grid grid-cols-2 gap-4">
                            <div>
                               <label className="block text-sm text-muted mb-1">Reise-Tempo</label>
-                              <select value={settings.pace} onChange={e => handleSettingsChange('pace', e.target.value)} className="w-full p-2 rounded-lg border border-border-color bg-input-bg text-white">
+                              <select value={settings.pace} onChange={e => handleSettingsChange('pace', e.target.value)} className="w-full p-2 rounded-lg border border-border-color bg-bg-secondary text-white">
                                   <option value="normal">Normal</option>
                                   <option value="fast">Schnell (Gruppen-PP halbiert)</option>
                                   <option value="slow">Langsam (Gruppen-PP +50%)</option>
@@ -203,7 +194,7 @@
                           </div>
                            <div>
                               <label className="block text-sm text-muted mb-1">Fahrzeug?</label>
-                              <select value={settings.vehicle} onChange={e => handleSettingsChange('vehicle', e.target.value)} className="w-full p-2 rounded-lg border border-border-color bg-input-bg text-white">
+                              <select value={settings.vehicle} onChange={e => handleSettingsChange('vehicle', e.target.value)} className="w-full p-2 rounded-lg border border-border-color bg-bg-secondary text-white">
                                   <option value="no">Nein</option>
                                   <option value="yes">Ja (Stealth Nachteil)</option>
                               </select>
@@ -240,7 +231,7 @@
                               </div>
                               <div>
                                   <label className="text-xs text-muted">Vision-Typ</label>
-                                  <select value={watch.vision} onChange={e => handleWatchChange(index, 'vision', e.target.value)} className="w-full p-1.5 text-sm rounded-md border border-border-color bg-input-bg text-white">
+                                  <select value={watch.vision} onChange={e => handleWatchChange(index, 'vision', e.target.value)} className="w-full p-1.5 text-sm rounded-md border border-border-color bg-bg-secondary text-white">
                                       {Object.entries(VISION_NAMES).map(([key, name]) => <option key={key} value={key}>{name}</option>)}
                                   </select>
                               </div>
@@ -259,7 +250,6 @@
           );
       };
 
-      // --- LogCard ---
       const LogCard = ({ log, result, onResetLog }) => {
           return (
               <div className="bg-card rounded-xl p-4 shadow-lg flex flex-col">
@@ -279,7 +269,6 @@
           );
       };
 
-      // --- MatrixEditor ---
       const MatrixInput = ({ value, onChange, onReset }) => (
           <div className="flex items-center gap-1 justify-center">
               <input 
@@ -415,7 +404,6 @@
           );
       };
 
-      // --- FlowPanels ---
       const FlowPanel = ({ title, children }) => (
           <div className="bg-card rounded-xl p-4 shadow-lg">
               <h4 className="text-lg font-bold mb-4">{title}</h4>
@@ -589,20 +577,13 @@
           return <div className="mt-4">{panelContent}</div>;
       };
 
-      // --- ResourceManager ---
       const ResourceManager = ({ creatures, setCreatures, storages, setStorages, addLog, triggerModal, settings }) => {
-          // State to handle Undo functionality
           const [lastStoragesState, setLastStoragesState] = useState(null);
-          const [lastCreaturesState, setLastCreaturesState] = useState(null); // Undo for stats too
+          const [lastCreaturesState, setLastCreaturesState] = useState(null);
           const [consumptionMsg, setConsumptionMsg] = useState(null);
-          
-          // Weather State
           const [isHotWeather, setIsHotWeather] = useState(false);
-
-          // Rationing Modal State
           const [rationing, setRationing] = useState({ isOpen: false, selections: {} });
 
-          // Foraging State
           const [forageState, setForageState] = useState({
               step: 'idle',
               dc: 15,
@@ -616,18 +597,16 @@
               isRanger: false
           });
 
-          // Helper to filter available storages
           const getAvailableStorages = (type) => {
               return storages.filter(s => {
                   if (!s.isActive) return false;
                   if (s.storageType !== type) return false;
-                  // Check capacity
-                  const current = type === 'water' ? s.water : (s.food + (s.feed||0));
-                  return current < s.maxCapacity;
+                  // Capacity check with 10lb multiplier for feed
+                  const currentWeight = type === 'water' ? s.water : (s.food + (s.feed || 0) * FEED_WEIGHT_LB);
+                  return currentWeight < s.maxCapacity;
               });
           };
 
-          // Auto-select first available storage when result opens
           useEffect(() => {
               if (forageState.step === 'result') {
                   const availFood = getAvailableStorages('food_feed');
@@ -639,16 +618,9 @@
                       selectedWaterStoreId: availWater.length > 0 ? availWater[0].id : ''
                   }));
               }
-          }, [forageState.step, storages]); // Re-run when storages change (e.g. fill up)
+          }, [forageState.step, storages]);
 
-          // Helper for controlled number inputs
-          const handleNumberChange = (
-              id, 
-              field, 
-              valueStr, 
-              setter, 
-              list
-          ) => {
+          const handleNumberChange = (id, field, valueStr, setter, list) => {
               setter((prev) => prev.map(item => {
                   if (item.id !== id) return item;
                   const num = valueStr === '' ? 0 : parseFloat(valueStr);
@@ -656,11 +628,9 @@
               }));
           };
           
-          // Helper to handle switching storage type and clearing incompatible data
           const handleStorageTypeChange = (id, newType) => {
               setStorages(prev => prev.map(s => {
                   if (s.id !== id) return s;
-                  // When switching type, clear the incompatible resource
                   return {
                       ...s,
                       storageType: newType,
@@ -687,12 +657,9 @@
               });
           };
 
-          // Calculate requirements per creature based on size and weather
           const getRequirements = (c) => {
               const rate = CONSUMPTION_RATES[c.size] || CONSUMPTION_RATES['Medium'];
-              // Default to count 1 since we removed the count field
               const count = 1;
-              // Water is doubled in hot weather
               const waterRate = isHotWeather ? rate.water * 2 : rate.water;
               
               return {
@@ -715,9 +682,7 @@
 
           const totalStored = useMemo(() => {
               return storages.reduce((acc, s) => {
-                  // IGNORE INACTIVE STORAGES IN CALCULATION
                   if (!s.isActive) return acc;
-                  
                   return {
                       food: acc.food + safeFloat(s.food),
                       water: acc.water + safeFloat(s.water),
@@ -726,10 +691,7 @@
               }, { food: 0, water: 0, feed: 0 });
           }, [storages]);
 
-          // --- CONSUMPTION LOGIC ---
-
           const openRationingModal = () => {
-              // Init selections: Default to TRUE (everyone eats/drinks)
               const initialSelections = {};
               creatures.forEach(c => {
                   initialSelections[c.id] = { food: true, water: true };
@@ -737,7 +699,6 @@
               setRationing({ isOpen: true, selections: initialSelections });
           };
 
-          // Calculate current selection totals within the modal
           const rationingTotals = useMemo(() => {
               if (!rationing.isOpen) return { food: 0, feed: 0, water: 0 };
               return creatures.reduce((acc, c) => {
@@ -747,7 +708,7 @@
                   const req = getRequirements(c);
                   return {
                       food: acc.food + (sel.food ? req.food : 0),
-                      feed: acc.feed + (sel.food ? req.feed : 0), // "food" checkbox controls feed for animals
+                      feed: acc.feed + (sel.food ? req.feed : 0),
                       water: acc.water + (sel.water ? req.water : 0)
                   };
               }, { food: 0, feed: 0, water: 0 });
@@ -768,27 +729,22 @@
 
           const confirmConsumption = () => {
               const needs = rationingTotals;
-              // Check if we have enough
               const epsilon = 0.001;
               if (needs.food > totalStored.food + epsilon || 
                   needs.feed > totalStored.feed + epsilon || 
                   needs.water > totalStored.water + epsilon) {
-                  // Should be disabled in UI, but safety check
                   return;
               }
 
-              // 1. Save State for Undo
               setLastStoragesState(JSON.parse(JSON.stringify(storages)));
               setLastCreaturesState(JSON.parse(JSON.stringify(creatures)));
 
-              // 2. Consume Resources
               const newStorages = storages.map(s => ({...s}));
               let foodNeeded = needs.food;
               let feedNeeded = needs.feed;
               let waterNeeded = needs.water;
 
               for (const store of newStorages) {
-                  // SKIP INACTIVE STORAGES DURING CONSUMPTION
                   if (!store.isActive) continue;
 
                   let sFood = safeFloat(store.food);
@@ -805,45 +761,14 @@
               }
               setStorages(newStorages);
 
-              // 3. Apply Consequences to Creatures
               const newCreatures = creatures.map(c => {
                   const sel = rationing.selections[c.id];
-                  if (!sel) return c; // Should not happen
+                  if (!sel) return c;
                   
                   let newDaysWithoutFood = c.daysWithoutFood;
                   let newExhaustion = c.exhaustion;
-
-                  // Food Logic
-                  if (sel.food) {
-                      newDaysWithoutFood = 0; // Reset on full meal
-                  } else {
-                      newDaysWithoutFood += 1;
-                      // Rule: > 3 + ConMod days = 1 Exhaustion
-                      const limit = Math.max(1, 3 + (c.conMod || 0));
-                      if (newDaysWithoutFood > limit) {
-                          newExhaustion += 1;
-                      }
-                  }
-
-                  // Water Logic
-                  if (!sel.water) {
-                      // Rule: Less than half water = 1 exhaustion (or 2 if already exhausted)
-                      // We treat unchecked as "no/little water"
-                      if (newExhaustion > 0) {
-                          newExhaustion += 2;
-                      } else {
-                          newExhaustion += 1;
-                      }
-                  }
-
-                  // Recovery Logic
-                  // Base:
-                  newExhaustion = c.exhaustion;
-                  
-                  // Penalties first
                   let gainedExhaustion = 0;
                   
-                  // Hunger Penalty
                   if (!sel.food) {
                       newDaysWithoutFood = c.daysWithoutFood + 1;
                        const limit = Math.max(1, 3 + (c.conMod || 0));
@@ -852,20 +777,16 @@
                       newDaysWithoutFood = 0;
                   }
 
-                  // Thirst Penalty
                   if (!sel.water) {
                       gainedExhaustion += (c.exhaustion + gainedExhaustion > 0) ? 2 : 1;
                   }
 
-                  // Apply Gains
                   newExhaustion += gainedExhaustion;
 
-                  // Recovery: If needs met (no gains calculated) AND had previous exhaustion -> recover 1
                   if (sel.food && sel.water && gainedExhaustion === 0 && c.exhaustion > 0) {
                       newExhaustion -= 1;
                   }
                   
-                  // Cap Exhaustion at 6 (Death) - though we just show 6
                   newExhaustion = Math.min(6, Math.max(0, newExhaustion));
 
                   return {
@@ -880,7 +801,7 @@
               
               const fedCount = Object.values(rationing.selections).filter(s => s.food).length;
               setConsumptionMsg(`Tagesabschluss: ${fedCount}/${creatures.length} versorgt.`);
-              addLog(`Tagesabschluss durchgeführt. Ressourcen verbraucht. Konsequenzen (Hunger/Durst) angewendet.`);
+              addLog(`Tagesabschluss durchgeführt.`);
               
               setTimeout(() => setConsumptionMsg(null), 5000);
           };
@@ -896,37 +817,17 @@
               setTimeout(() => setConsumptionMsg(null), 3000);
           };
 
-          // --- Foraging Logic ---
           const startForaging = () => {
-              if (settings.pace === 'fast') {
-                  triggerModal('alert', 'Nicht möglich', 'Bei schnellem Reisetempo kann nicht gesammelt werden (Pace: Fast).');
-                  return;
-              }
+              // Restriction for fast pace removed by user request
               setForageState({ ...forageState, step: 'config', dc: 15, wisMod: 0, checkResult: 0, isRanger: false });
           };
 
           const handleWandererFeature = () => {
-              setForageState(prev => ({ 
-                  ...prev, 
-                  step: 'result', 
-                  foodFound: 6, 
-                  waterFound: 6, 
-                  mishap: false, 
-                  checkResult: 999 
-              }));
-              addLog(`Nahrungssuche: "Wanderer" (Outlander) Feature genutzt. Automatisch 6lb Essen, 6gal Wasser gefunden.`);
+              setForageState(prev => ({ ...prev, step: 'result', foodFound: 6, waterFound: 6, mishap: false, checkResult: 999 }));
           };
 
           const handleCreateFoodSpell = () => {
-              setForageState(prev => ({ 
-                  ...prev, 
-                  step: 'result', 
-                  foodFound: 45, 
-                  waterFound: 30, 
-                  mishap: false, 
-                  checkResult: 999 
-              }));
-              addLog(`Zauber "Create Food and Water" gewirkt. 45lb Essen, 30gal Wasser erschaffen.`);
+              setForageState(prev => ({ ...prev, step: 'result', foodFound: 45, waterFound: 30, mishap: false, checkResult: 999 }));
           };
 
           const calculateForage = () => {
@@ -935,45 +836,26 @@
               let food = 0;
               let water = 0;
               let mishap = false;
-
               const multiplier = forageState.isRanger ? 2 : 1;
 
               if (check >= dc) {
-                  const baseFood = Math.max(0, rnd(6) + forageState.wisMod);
-                  const baseWater = Math.max(0, rnd(6) + forageState.wisMod);
-                  food = baseFood * multiplier;
-                  water = baseWater * multiplier;
+                  food = Math.max(0, rnd(6) + forageState.wisMod) * multiplier;
+                  water = Math.max(0, rnd(6) + forageState.wisMod) * multiplier;
               } else if (check <= dc - 5) {
                   mishap = true;
               }
 
-              setForageState(prev => ({ 
-                  ...prev, 
-                  step: 'result', 
-                  foodFound: food, 
-                  waterFound: water, 
-                  mishap 
-              }));
-              
-              let logMsg = `Nahrungssuche: DC ${dc}, Check ${check}.`;
-              if (mishap) logMsg += ' MISSGESCHICK!';
-              else if (check >= dc) {
-                  logMsg += ` Erfolg: ${food}lb Essen, ${water}gal Wasser`;
-                  if (forageState.isRanger) logMsg += ` (x2 durch Ranger)`;
-              } else {
-                  logMsg += ' Fehlschlag.';
-              }
-              addLog(logMsg);
+              setForageState(prev => ({ ...prev, step: 'result', foodFound: food, waterFound: water, mishap }));
           };
 
-          // Store Food Only
           const storeFood = () => {
               const targetId = forageState.selectedFoodStoreId;
               if(!targetId) return;
               const targetStorage = storages.find(s => s.id === targetId);
               if(!targetStorage) return;
 
-              const currentLoad = targetStorage.food + (targetStorage.feed || 0);
+              // Use FEED_WEIGHT_LB for capacity check
+              const currentLoad = targetStorage.food + (targetStorage.feed || 0) * FEED_WEIGHT_LB;
               const space = targetStorage.maxCapacity - currentLoad;
               const toAdd = Math.min(space, forageState.foodFound);
 
@@ -983,17 +865,9 @@
               }
 
               setStorages(prev => prev.map(s => s.id === targetId ? { ...s, food: s.food + toAdd } : s));
-              addLog(`Eingelagert in ${targetStorage.name}: ${toAdd}lb Essen.`);
-
-              setForageState(prev => ({
-                  ...prev,
-                  foodFound: prev.foodFound - toAdd,
-                  // Re-eval selected ID done by effect, but safer to clear if full:
-                  selectedFoodStoreId: (space - toAdd <= 0) ? '' : targetId 
-              }));
+              setForageState(prev => ({ ...prev, foodFound: prev.foodFound - toAdd }));
           };
 
-          // Store Water Only
           const storeWater = () => {
               const targetId = forageState.selectedWaterStoreId;
               if(!targetId) return;
@@ -1009,19 +883,11 @@
               }
 
               setStorages(prev => prev.map(s => s.id === targetId ? { ...s, water: s.water + toAdd } : s));
-              addLog(`Eingelagert in ${targetStorage.name}: ${toAdd}gal Wasser.`);
-
-              setForageState(prev => ({
-                  ...prev,
-                  waterFound: prev.waterFound - toAdd,
-                   // Re-eval selected ID done by effect
-                   selectedWaterStoreId: (space - toAdd <= 0) ? '' : targetId 
-              }));
+              setForageState(prev => ({ ...prev, waterFound: prev.waterFound - toAdd }));
           };
           
           const discardRemainingForage = () => {
               triggerModal('confirm', 'Rest wegwerfen?', `Möchtest du ${forageState.foodFound}lb Essen und ${forageState.waterFound}gal Wasser zurücklassen?`, () => {
-                   addLog(`Restliche Ressourcen weggeworfen: ${forageState.foodFound}lb Essen, ${forageState.waterFound}gal Wasser.`);
                    setForageState(prev => ({...prev, step: 'idle'}));
               });
           }
@@ -1035,7 +901,6 @@
                           <div className="bg-card border border-border-color rounded-xl shadow-2xl max-w-2xl w-full p-6 flex flex-col max-h-[90vh]">
                               <h3 className="text-xl font-bold mb-4 text-white">Rationierung & Verbrauch</h3>
                               
-                              {/* Summary Header */}
                               <div className="grid grid-cols-3 gap-4 mb-4 text-center bg-glass p-3 rounded-lg">
                                   <div>
                                       <div className="text-xs text-muted">Essen (lb)</div>
@@ -1085,12 +950,6 @@
                                                               {c.exhaustion > 0 && <span className="text-bad text-xs px-1.5 py-0.5 bg-bad/10 rounded">💀 Lv {c.exhaustion}</span>}
                                                               {c.daysWithoutFood === 0 && c.exhaustion === 0 && <span className="text-muted text-xs">-</span>}
                                                           </div>
-                                                          {(willStarve || willDehydrate) && (
-                                                              <div className="text-[10px] text-bad mt-1">
-                                                                  {willStarve ? '+Exh (Hunger) ' : ''}
-                                                                  {willDehydrate ? '+Exh (Durst)' : ''}
-                                                              </div>
-                                                          )}
                                                       </td>
                                                       <td className="p-3 text-center">
                                                           <label className="flex flex-col items-center cursor-pointer group">
@@ -1116,25 +975,14 @@
                               </div>
 
                               <div className="flex gap-2">
-                                  <button 
-                                      onClick={confirmConsumption} 
-                                      disabled={rationingTotals.food > totalStored.food + 0.001 || rationingTotals.feed > totalStored.feed + 0.001 || rationingTotals.water > totalStored.water + 0.001}
-                                      className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                      Bestätigen & Konsequenzen anwenden
-                                  </button>
-                                   <button 
-                                      onClick={() => setRationing({isOpen: false, selections: {}})} 
-                                      className="px-4 py-3 border border-border-color rounded-lg text-muted hover:bg-glass"
-                                  >
-                                      Abbrechen
-                                  </button>
+                                  <button onClick={confirmConsumption} disabled={rationingTotals.food > totalStored.food + 0.001 || rationingTotals.feed > totalStored.feed + 0.001 || rationingTotals.water > totalStored.water + 0.001} className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-lg shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Bestätigen & Konsequenzen anwenden</button>
+                                  <button onClick={() => setRationing({isOpen: false, selections: {}})} className="px-4 py-3 border border-border-color rounded-lg text-muted hover:bg-glass">Abbrechen</button>
                               </div>
                           </div>
                        </div>
                   )}
 
-                  {/* Foraging Modal Overlay */}
+                  {/* Foraging Modal */}
                   {forageState.step !== 'idle' && (
                       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                           <div className="bg-card border border-border-color rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
@@ -1145,46 +993,23 @@
                                           <div>
                                               <label className="text-sm text-muted block mb-2">Verfügbarkeit (DC)</label>
                                               <div className="grid grid-cols-3 gap-2">
-                                                  <button onClick={() => setForageState(prev => ({...prev, dc: 10}))} className={`p-2 rounded border border-border-color text-sm ${forageState.dc === 10 ? 'bg-accent text-bg-secondary font-bold' : 'bg-input-bg text-muted'}`}>Reichlich<br/>(DC 10)</button>
-                                                  <button onClick={() => setForageState(prev => ({...prev, dc: 15}))} className={`p-2 rounded border border-border-color text-sm ${forageState.dc === 15 ? 'bg-accent text-bg-secondary font-bold' : 'bg-input-bg text-muted'}`}>Begrenzt<br/>(DC 15)</button>
-                                                  <button onClick={() => setForageState(prev => ({...prev, dc: 20}))} className={`p-2 rounded border border-border-color text-sm ${forageState.dc === 20 ? 'bg-accent text-bg-secondary font-bold' : 'bg-input-bg text-muted'}`}>Karg<br/>(DC 20)</button>
+                                                  <button onClick={() => setForageState(prev => ({...prev, dc: 10}))} className={`p-2 rounded border border-border-color text-sm ${forageState.dc === 10 ? 'bg-accent text-bg-secondary font-bold' : 'bg-input-bg text-muted'}`}>Reichlich</button>
+                                                  <button onClick={() => setForageState(prev => ({...prev, dc: 15}))} className={`p-2 rounded border border-border-color text-sm ${forageState.dc === 15 ? 'bg-accent text-bg-secondary font-bold' : 'bg-input-bg text-muted'}`}>Begrenzt</button>
+                                                  <button onClick={() => setForageState(prev => ({...prev, dc: 20}))} className={`p-2 rounded border border-border-color text-sm ${forageState.dc === 20 ? 'bg-accent text-bg-secondary font-bold' : 'bg-input-bg text-muted'}`}>Karg</button>
                                               </div>
                                           </div>
                                           <div>
                                               <label className="text-sm text-muted block mb-1">Wisdom (Survival) Modifier</label>
                                               <input type="number" value={forageState.wisMod} onChange={e => setForageState(prev => ({...prev, wisMod: parseInt(e.target.value)||0}))} className="w-full bg-input-bg rounded p-2 text-white border border-border-color" />
                                           </div>
-                                          
-                                          <div className="border-t border-border-color pt-4 mt-2">
-                                              <label className="text-sm text-white font-bold block mb-2">Features & Modifikatoren</label>
+                                          <div className="border-t border-border-color pt-4">
                                               <div className="flex items-center gap-2 mb-3">
-                                                  <input 
-                                                      type="checkbox" 
-                                                      id="rangerCheck"
-                                                      checked={forageState.isRanger}
-                                                      onChange={e => setForageState(prev => ({...prev, isRanger: e.target.checked}))}
-                                                      className="w-4 h-4 rounded border-border-color bg-input-bg"
-                                                  />
-                                                  <label htmlFor="rangerCheck" className="text-sm text-muted cursor-pointer select-none">
-                                                      Natural Explorer (x2 Ertrag)
-                                                  </label>
+                                                  <input type="checkbox" id="rangerCheck" checked={forageState.isRanger} onChange={e => setForageState(prev => ({...prev, isRanger: e.target.checked}))} className="w-4 h-4 rounded" />
+                                                  <label htmlFor="rangerCheck" className="text-sm text-muted">Natural Explorer (x2)</label>
                                               </div>
-
                                               <div className="grid grid-cols-1 gap-2">
-                                                  <button 
-                                                      onClick={handleWandererFeature}
-                                                      className="text-left px-3 py-2 bg-glass border border-border-color rounded hover:bg-white/5 transition-colors text-sm text-accent"
-                                                  >
-                                                      <strong>🌍 Wanderer (Outlander)</strong>
-                                                      <div className="text-xs text-muted mt-0.5">Automatischer Erfolg für 6 Personen (6lb/6gal).</div>
-                                                  </button>
-                                                  <button 
-                                                      onClick={handleCreateFoodSpell}
-                                                      className="text-left px-3 py-2 bg-glass border border-border-color rounded hover:bg-white/5 transition-colors text-sm text-purple-400"
-                                                  >
-                                                      <strong>✨ Zauber: Create Food & Water</strong>
-                                                      <div className="text-xs text-muted mt-0.5">Erschafft 45lb Essen & 30gal Wasser.</div>
-                                                  </button>
+                                                  <button onClick={handleWandererFeature} className="text-left px-3 py-2 bg-glass border border-border-color rounded text-sm text-accent">🌍 Wanderer (Outlander)</button>
+                                                  <button onClick={handleCreateFoodSpell} className="text-left px-3 py-2 bg-glass border border-border-color rounded text-sm text-purple-400">✨ Create Food & Water</button>
                                               </div>
                                           </div>
                                       </div>
@@ -1197,15 +1022,9 @@
                               {forageState.step === 'input' && (
                                   <>
                                       <h3 className="text-xl font-bold mb-4 text-white">Survival Check</h3>
-                                      <div className="mb-6">
-                                          <label className="text-sm text-muted block mb-1">Wurfergebnis (d20 + Mod)</label>
-                                          <input autoFocus type="number" min="1" onChange={e => setForageState(prev => ({...prev, checkResult: parseInt(e.target.value)||0}))} className="w-full bg-input-bg rounded p-3 text-xl text-center text-white border border-border-color" placeholder="0" />
-                                          <p className="text-xs text-muted mt-2 text-center">Zielwert (DC): {forageState.dc}</p>
-                                          {forageState.isRanger && <p className="text-xs text-accent mt-1 text-center font-bold">Ranger aktiv: Ertrag wird verdoppelt!</p>}
-                                      </div>
+                                      <input autoFocus type="number" min="1" onChange={e => setForageState(prev => ({...prev, checkResult: parseInt(e.target.value)||0}))} className="w-full bg-input-bg rounded p-3 text-xl text-center text-white mb-6" placeholder="0" />
                                       <div className="flex gap-2">
                                           <button onClick={calculateForage} className="flex-1 bg-accent text-bg-secondary font-bold py-2 rounded-lg">Check auswerten</button>
-                                          <button onClick={() => setForageState(prev => ({...prev, step: 'config'}))} className="flex-1 border border-border-color text-muted py-2 rounded-lg">Zurück</button>
                                       </div>
                                   </>
                               )}
@@ -1213,103 +1032,40 @@
                                   <>
                                       <h3 className="text-xl font-bold mb-4 text-white">Ergebnis</h3>
                                       <div className="mb-6 bg-glass p-4 rounded-lg text-center">
-                                          {forageState.mishap ? (
-                                              <div className="text-bad font-bold animate-pulse">
-                                                  <div className="text-3xl mb-2">⚠️</div>
-                                                  MISSGESCHICK!<br/>
-                                                  <span className="text-sm font-normal text-muted">Check ({forageState.checkResult}) war 5+ unter DC ({forageState.dc}).<br/>Zufallsbegegnung oder Vergiftung möglich.</span>
-                                              </div>
-                                          ) : (
-                                              <>
-                                                  {forageState.foodFound > 0 || forageState.waterFound > 0 ? (
-                                                      <div className="text-good font-bold">
-                                                          <div className="text-3xl mb-2">🌿</div>
-                                                          Erfolg!<br/>
-                                                          {forageState.checkResult === 999 && <span className="text-xs text-accent mb-2 block">(Automatisch / Feature)</span>}
-                                                          <div className="mt-2 grid grid-cols-2 gap-4 text-white">
-                                                              <div className="bg-bg-secondary p-2 rounded">
-                                                                  <div className="text-xs text-muted">Essen gefunden:</div>
-                                                                  <div className="text-xl">{forageState.foodFound} lb</div>
-                                                              </div>
-                                                              <div className="bg-bg-secondary p-2 rounded">
-                                                                  <div className="text-xs text-muted">Wasser gefunden:</div>
-                                                                  <div className="text-xl">{forageState.waterFound} gal</div>
-                                                              </div>
-                                                          </div>
-                                                      </div>
-                                                  ) : (
-                                                      <div className="text-muted">
-                                                          <div className="text-3xl mb-2">🍂</div>
-                                                          Nichts gefunden.<br/>
-                                                          <span className="text-sm">Check ({forageState.checkResult}) hat DC ({forageState.dc}) nicht erreicht.</span>
-                                                      </div>
-                                                  )}
-                                              </>
-                                          )}
+                                          {forageState.mishap ? <div className="text-bad font-bold">MISSGESCHICK!</div> : 
+                                          <div className="text-white">Gefunden: {forageState.foodFound}lb Essen, {forageState.waterFound}gal Wasser</div>}
                                       </div>
 
-                                      {(forageState.foodFound > 0 || forageState.waterFound > 0) && !forageState.mishap && (
-                                          <div className="space-y-4 mb-4 text-left">
-                                              
-                                              {/* Food Storage Section */}
+                                      {!forageState.mishap && (
+                                          <div className="space-y-4 mb-4">
                                               {forageState.foodFound > 0 && (
-                                                  <div className="bg-glass p-3 rounded-lg border border-border-color">
-                                                      <label className="text-sm font-bold block mb-2 text-white">🍔 Essen einlagern ({forageState.foodFound} lb)</label>
-                                                      {getAvailableStorages('food_feed').length > 0 ? (
-                                                          <div className="flex gap-2">
-                                                              <select 
-                                                                  value={forageState.selectedFoodStoreId} 
-                                                                  onChange={e => setForageState(prev => ({...prev, selectedFoodStoreId: e.target.value}))} 
-                                                                  className="flex-grow bg-bg-secondary text-white p-2 rounded text-sm border border-border-color focus:border-accent outline-none appearance-none cursor-pointer"
-                                                              >
-                                                                  {getAvailableStorages('food_feed').map(s => {
-                                                                      const load = s.food + (s.feed||0);
-                                                                      const space = s.maxCapacity - load;
-                                                                      return <option key={s.id} value={s.id}>{s.name} (Frei: {space}lb)</option>
-                                                                  })}
-                                                              </select>
-                                                              <button onClick={storeFood} className="bg-good text-bg-secondary font-bold px-3 py-1 rounded text-sm">OK</button>
-                                                          </div>
-                                                      ) : (
-                                                          <div className="text-xs text-bad">Kein geeignetes Lager verfügbar (alle voll oder inaktiv).</div>
-                                                      )}
+                                                  <div className="bg-glass p-3 rounded-lg">
+                                                      <label className="text-xs text-muted block mb-1">Essen einlagern ({forageState.foodFound} lb)</label>
+                                                      <div className="flex gap-2">
+                                                          <select value={forageState.selectedFoodStoreId} onChange={e => setForageState(prev => ({...prev, selectedFoodStoreId: e.target.value}))} className="flex-grow bg-bg-secondary text-white p-2 rounded text-sm">
+                                                              {getAvailableStorages('food_feed').map(s => {
+                                                                  const currentLoad = s.food + (s.feed||0) * FEED_WEIGHT_LB;
+                                                                  return <option key={s.id} value={s.id}>{s.name} (Frei: {(s.maxCapacity - currentLoad).toFixed(1)}lb)</option>
+                                                              })}
+                                                          </select>
+                                                          <button onClick={storeFood} className="bg-good text-bg-secondary px-3 py-1 rounded text-sm font-bold">OK</button>
+                                                      </div>
                                                   </div>
                                               )}
-
-                                              {/* Water Storage Section */}
                                               {forageState.waterFound > 0 && (
-                                                  <div className="bg-glass p-3 rounded-lg border border-border-color">
-                                                      <label className="text-sm font-bold block mb-2 text-white">💧 Wasser einlagern ({forageState.waterFound} gal)</label>
-                                                      {getAvailableStorages('water').length > 0 ? (
-                                                          <div className="flex gap-2">
-                                                              <select 
-                                                                  value={forageState.selectedWaterStoreId} 
-                                                                  onChange={e => setForageState(prev => ({...prev, selectedWaterStoreId: e.target.value}))} 
-                                                                  className="flex-grow bg-bg-secondary text-white p-2 rounded text-sm border border-border-color focus:border-accent outline-none appearance-none cursor-pointer"
-                                                              >
-                                                                  {getAvailableStorages('water').map(s => {
-                                                                      const space = s.maxCapacity - s.water;
-                                                                      return <option key={s.id} value={s.id}>{s.name} (Frei: {space}gal)</option>
-                                                                  })}
-                                                              </select>
-                                                              <button onClick={storeWater} className="bg-accent text-bg-secondary font-bold px-3 py-1 rounded text-sm">OK</button>
-                                                          </div>
-                                                      ) : (
-                                                          <div className="text-xs text-bad">Kein geeignetes Lager verfügbar (alle voll oder inaktiv).</div>
-                                                      )}
+                                                  <div className="bg-glass p-3 rounded-lg">
+                                                      <label className="text-xs text-muted block mb-1">Wasser einlagern ({forageState.waterFound} gal)</label>
+                                                      <div className="flex gap-2">
+                                                          <select value={forageState.selectedWaterStoreId} onChange={e => setForageState(prev => ({...prev, selectedWaterStoreId: e.target.value}))} className="flex-grow bg-bg-secondary text-white p-2 rounded text-sm">
+                                                              {getAvailableStorages('water').map(s => <option key={s.id} value={s.id}>{s.name} (Frei: {(s.maxCapacity - s.water).toFixed(1)}gal)</option>)}
+                                                          </select>
+                                                          <button onClick={storeWater} className="bg-accent text-bg-secondary px-3 py-1 rounded text-sm font-bold">OK</button>
+                                                      </div>
                                                   </div>
                                               )}
-
                                           </div>
                                       )}
-
-                                      <div className="flex gap-2 flex-col">
-                                          {(forageState.foodFound > 0 || forageState.waterFound > 0) && !forageState.mishap ? (
-                                               <button onClick={discardRemainingForage} className="w-full bg-transparent border border-bad/50 text-bad text-sm py-2 rounded-lg hover:bg-bad/10">Rest wegwerfen & Schließen</button>
-                                          ) : (
-                                              <button onClick={() => setForageState(prev => ({...prev, step: 'idle'}))} className="w-full bg-accent text-bg-secondary font-bold py-2 rounded-lg">Schließen</button>
-                                          )}
-                                      </div>
+                                      <button onClick={discardRemainingForage} className="w-full bg-accent text-bg-secondary font-bold py-2 rounded-lg">Schließen</button>
                                   </>
                               )}
                           </div>
@@ -1321,92 +1077,37 @@
                           <div className="flex justify-between items-center mb-4">
                               <h3 className="text-xl font-bold">Verbraucher</h3>
                               <div className="flex items-center gap-2">
-                                   <button 
-                                      onClick={() => setIsHotWeather(!isHotWeather)} 
-                                      className={`text-xs px-2 py-1 rounded border transition-colors ${isHotWeather ? 'bg-orange-500/20 text-orange-400 border-orange-500' : 'bg-transparent text-muted border-border-color'}`}
-                                      title="Verdoppelt Wasserbedarf"
-                                  >
-                                      {isHotWeather ? '☀️ Heiß' : '☁️ Normal'}
-                                  </button>
-                                  <button onClick={addCreature} className="text-xs bg-glass hover:bg-white/10 px-2 py-1 rounded border border-border-color">+ Neu</button>
+                                  <button onClick={() => setIsHotWeather(!isHotWeather)} className={`text-xs px-2 py-1 rounded border ${isHotWeather ? 'bg-orange-500/20 text-orange-400 border-orange-500' : 'text-muted'}`}>{isHotWeather ? '☀️ Heiß' : '☁️ Normal'}</button>
+                                  <button onClick={addCreature} className="text-xs bg-glass px-2 py-1 rounded border">+ Neu</button>
                               </div>
                           </div>
                           
                           <div className="space-y-2">
                               {creatures.map(c => (
                                   <div key={c.id} className="grid grid-cols-[auto,1fr,auto,80px,30px] gap-2 items-center bg-glass p-2 rounded">
-                                      <div className="flex flex-col gap-0.5 min-w-[30px]">
-                                          {c.daysWithoutFood > 0 && <span className="text-[10px] text-white bg-orange-500/50 px-1 rounded text-center" title="Tage ohne Essen">🍔{c.daysWithoutFood}</span>}
-                                          {c.exhaustion > 0 && <span className="text-[10px] text-white bg-bad px-1 rounded text-center" title="Erschöpfungs-Level">💀{c.exhaustion}</span>}
+                                      <div className="flex flex-col gap-0.5">
+                                          {c.daysWithoutFood > 0 && <span className="text-[10px] text-white bg-orange-500/50 px-1 rounded text-center">🍔{c.daysWithoutFood}</span>}
+                                          {c.exhaustion > 0 && <span className="text-[10px] text-white bg-bad px-1 rounded text-center">💀{c.exhaustion}</span>}
                                       </div>
-                                      
-                                      <div>
-                                          <input className="bg-transparent border-b border-border-color focus:border-accent outline-none text-sm w-full text-white" value={c.name} onChange={e => updateCreature(c.id, 'name', e.target.value)} placeholder="Name" />
-                                          <div className="flex items-center gap-2 mt-1">
-                                               <label className="text-[10px] text-muted flex items-center gap-1">
-                                                  Con Mod:
-                                                  <input type="number" value={c.conMod || 0} onChange={e => handleNumberChange(c.id, 'conMod', e.target.value, setCreatures, creatures)} className="w-8 h-4 bg-input-bg text-center rounded border-none text-[10px]" />
-                                              </label>
-                                          </div>
-                                      </div>
-                                      
-                                      <button 
-                                          onClick={() => updateCreature(c.id, 'usesFeed', !c.usesFeed)}
-                                          className={`p-1.5 rounded transition-colors ${c.usesFeed ? 'bg-yellow-600 text-white' : 'bg-input-bg text-muted hover:bg-white/10'}`}
-                                          title={c.usesFeed ? "Verbraucht Tierfutter" : "Verbraucht normale Rationen"}
-                                      >
-                                          🐾
-                                      </button>
-
+                                      <input className="bg-transparent text-sm text-white outline-none" value={c.name} onChange={e => updateCreature(c.id, 'name', e.target.value)} placeholder="Name" />
+                                      <button onClick={() => updateCreature(c.id, 'usesFeed', !c.usesFeed)} className={`p-1.5 rounded ${c.usesFeed ? 'bg-yellow-600 text-white' : 'bg-input-bg text-muted'}`}>🐾</button>
                                       <select className="bg-bg-secondary text-xs rounded p-1 border border-border-color text-white" value={c.size} onChange={e => updateCreature(c.id, 'size', e.target.value)}>
                                           {Object.keys(CONSUMPTION_RATES).map(size => <option key={size} value={size}>{size}</option>)}
                                       </select>
-                                      
-                                      <button onClick={() => removeCreature(c.id)} className="text-muted hover:text-bad">×</button>
+                                      <button onClick={() => removeCreature(c.id)} className="text-muted">×</button>
                                   </div>
                               ))}
-                              {creatures.length === 0 && <div className="text-muted text-sm italic p-2">Keine Einträge.</div>}
                           </div>
                       </div>
 
                       <div className="bg-card rounded-xl p-4 shadow-lg border border-border-color">
                           <h3 className="text-lg font-bold mb-3">Tagesabschluss</h3>
-                          <div className="flex justify-between text-sm mb-1">
-                              <span className="text-muted">Bedarf (Tag):</span>
-                              <div className="text-right">
-                                 <div className="whitespace-nowrap">🍔 {totalNeeds.food.toFixed(2)} lb</div>
-                                 <div className="whitespace-nowrap">🌾 {totalNeeds.feed.toFixed(2)} U</div>
-                                 <div className="whitespace-nowrap">💧 {totalNeeds.water.toFixed(2)} gal</div>
-                              </div>
+                          <div className="text-sm space-y-1 mb-4">
+                              <div className="flex justify-between"><span className="text-muted">Bedarf:</span> <span>🍔 {totalNeeds.food.toFixed(1)} / 🌾 {totalNeeds.feed.toFixed(1)} / 💧 {totalNeeds.water.toFixed(1)}</span></div>
+                              <div className="flex justify-between"><span className="text-muted">Vorrat:</span> <span>🍔 {totalStored.food.toFixed(1)} / 🌾 {totalStored.feed.toFixed(1)} / 💧 {totalStored.water.toFixed(1)}</span></div>
                           </div>
-                          <div className="h-px bg-border-color my-2"></div>
-                          <div className="flex justify-between text-sm mb-4">
-                              <span className="text-muted">Vorrat (Aktiv):</span>
-                              <div className="text-right">
-                                 <div className={totalStored.food < totalNeeds.food ? 'text-bad' : 'text-good'}>🍔 {totalStored.food.toFixed(2)} lb</div>
-                                 <div className={totalStored.feed < totalNeeds.feed ? 'text-bad' : 'text-good'}>🌾 {totalStored.feed.toFixed(2)} U</div>
-                                 <div className={totalStored.water < totalNeeds.water ? 'text-bad' : 'text-good'}>💧 {totalStored.water.toFixed(2)} gal</div>
-                              </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                              <button onClick={openRationingModal} disabled={creatures.length === 0} className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                  Tagesration verbrauchen
-                              </button>
-                              
-                              {consumptionMsg && (
-                                  <div className="p-2 bg-good/20 border border-good/50 text-good rounded text-center text-sm animate-pulse">
-                                      {consumptionMsg}
-                                  </div>
-                              )}
-                              
-                              {lastStoragesState && (
-                                  <button onClick={handleUndo} className="w-full bg-transparent border border-border-color text-muted py-2 px-4 rounded-lg hover:bg-glass hover:text-white transition-all text-sm flex items-center justify-center gap-2">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-                                      Widerrufen
-                                  </button>
-                              )}
-                          </div>
+                          <button onClick={openRationingModal} disabled={creatures.length === 0} className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-lg">Tagesration verbrauchen</button>
+                          {lastStoragesState && <button onClick={handleUndo} className="w-full mt-2 text-muted text-sm hover:text-white transition-colors">Widerrufen</button>}
                       </div>
                   </div>
 
@@ -1414,97 +1115,66 @@
                       <div className="flex justify-between items-center mb-4">
                           <h3 className="text-xl font-bold">Lager & Vorräte</h3>
                           <div className="flex gap-2">
-                               <button onClick={startForaging} className="text-xs bg-gradient-to-r from-green-600 to-green-700 text-white font-bold px-2 py-1 rounded border border-transparent shadow-sm hover:opacity-90">🌿 Suchen</button>
-                              <button onClick={addStorage} className="text-xs bg-glass hover:bg-white/10 px-2 py-1 rounded border border-border-color">+ Lager</button>
+                              <button onClick={startForaging} className="text-xs bg-green-700 text-white px-2 py-1 rounded">🌿 Suchen</button>
+                              <button onClick={addStorage} className="text-xs bg-glass px-2 py-1 rounded border">+ Lager</button>
                           </div>
                       </div>
 
                       <div className="space-y-3">
                           {storages.map(s => {
-                              const currentLoad = s.storageType === 'water' ? s.water : (s.food + (s.feed||0));
+                              // Feed weighs 10x more than regular food
+                              const currentLoad = s.storageType === 'water' ? s.water : (s.food + (s.feed||0) * FEED_WEIGHT_LB);
                               const isFull = currentLoad >= s.maxCapacity;
                               
                               return (
-                                  <div key={s.id} className={`bg-glass p-3 rounded-lg border border-transparent hover:border-border-color transition-all ${!s.isActive ? 'opacity-50 grayscale' : ''}`}>
+                                  <div key={s.id} className={`bg-glass p-3 rounded-lg border ${!s.isActive ? 'opacity-50 grayscale' : ''}`}>
                                       <div className="flex justify-between items-center mb-2">
-                                          <div className="flex items-center gap-2 flex-grow mr-2">
-                                              <button 
-                                                  onClick={() => updateStorage(s.id, 'isActive', !s.isActive)}
-                                                  className={`p-1 rounded text-xs border ${s.isActive ? 'bg-good/20 text-good border-good/30' : 'bg-transparent text-muted border-border-color'}`}
-                                                  title={s.isActive ? "Lager wird verwendet" : "Lager wird ignoriert"}
-                                              >
-                                                  {s.isActive ? 'Aktiv' : 'Inaktiv'}
-                                              </button>
-                                              <input className="font-bold bg-transparent border-b border-transparent focus:border-accent outline-none w-full text-white" value={s.name} onChange={e => updateStorage(s.id, 'name', e.target.value)} placeholder="Lager Name" />
+                                          <div className="flex items-center gap-2 flex-grow">
+                                              <button onClick={() => updateStorage(s.id, 'isActive', !s.isActive)} className={`p-1 rounded text-[10px] border ${s.isActive ? 'text-good border-good/30' : 'text-muted'}`}>{s.isActive ? 'Aktiv' : 'Inaktiv'}</button>
+                                              <input className="font-bold bg-transparent text-white outline-none w-full" value={s.name} onChange={e => updateStorage(s.id, 'name', e.target.value)} />
                                           </div>
-                                          <button onClick={() => removeStorage(s.id)} className="text-muted hover:text-bad">×</button>
+                                          <button onClick={() => removeStorage(s.id)} className="text-muted">×</button>
                                       </div>
                                       
-                                      <div className="mb-2 flex items-center gap-2 text-xs">
-                                          <div className="flex bg-input-bg rounded p-1 border border-border-color">
-                                              <button onClick={() => handleStorageTypeChange(s.id, 'food_feed')} className={`px-2 py-0.5 rounded ${s.storageType === 'food_feed' ? 'bg-accent text-bg-secondary font-bold' : 'text-muted'}`}>Essen/Futter</button>
-                                              <button onClick={() => handleStorageTypeChange(s.id, 'water')} className={`px-2 py-0.5 rounded ${s.storageType === 'water' ? 'bg-accent text-bg-secondary font-bold' : 'text-muted'}`}>Wasser</button>
+                                      <div className="flex justify-between text-[10px] text-muted mb-1">
+                                          <div className="flex bg-input-bg rounded p-0.5">
+                                              <button onClick={() => handleStorageTypeChange(s.id, 'food_feed')} className={`px-2 py-0.5 rounded ${s.storageType === 'food_feed' ? 'bg-accent text-bg-secondary font-bold' : ''}`}>Essen</button>
+                                              <button onClick={() => handleStorageTypeChange(s.id, 'water')} className={`px-2 py-0.5 rounded ${s.storageType === 'water' ? 'bg-accent text-bg-secondary font-bold' : ''}`}>Wasser</button>
                                           </div>
-                                          <div className="flex-grow text-right text-muted">
-                                              Kapazität: <input type="number" value={s.maxCapacity} onChange={e => handleNumberChange(s.id, 'maxCapacity', e.target.value, setStorages, storages)} className="w-12 bg-transparent border-b border-border-color text-right focus:border-accent text-white" /> {s.storageType === 'water' ? 'gal' : 'lb'}
-                                          </div>
+                                          <div>Kapazität: <input type="number" step="1" value={s.maxCapacity} onChange={e => handleNumberChange(s.id, 'maxCapacity', e.target.value, setStorages, storages)} className="w-10 bg-transparent text-white text-right" /> lb</div>
                                       </div>
 
-                                      {/* Capacity Bar */}
-                                      <div className="w-full bg-input-bg h-1.5 rounded-full overflow-hidden mb-3">
-                                          <div 
-                                              className={`h-full ${isFull ? 'bg-bad' : 'bg-good'} transition-all duration-300`} 
-                                              style={{ width: `${Math.min(100, (currentLoad / s.maxCapacity) * 100)}%` }}
-                                          ></div>
+                                      <div className="w-full bg-input-bg h-1 rounded-full overflow-hidden mb-3">
+                                          <div className={`h-full ${isFull ? 'bg-bad' : 'bg-good'}`} style={{ width: `${Math.min(100, (currentLoad / s.maxCapacity) * 100)}%` }}></div>
                                       </div>
 
                                       <div className="grid grid-cols-2 gap-2">
                                           {s.storageType === 'food_feed' ? (
                                               <>
                                                   <div>
-                                                      <label className="text-xs text-muted block mb-1">Essen (lb)</label>
-                                                      <input 
-                                                          type="number" 
-                                                          step="0.1" 
-                                                          className="w-full bg-input-bg rounded p-1.5 text-sm border border-border-color focus:border-accent text-white" 
-                                                          value={s.food} 
-                                                          onChange={e => handleNumberChange(s.id, 'food', e.target.value, setStorages, storages)}
-                                                      />
+                                                      <label className="text-[10px] text-muted block">Essen (lb)</label>
+                                                      <input type="number" step="1" className="w-full bg-input-bg rounded p-1 text-sm text-white" value={s.food} onChange={e => handleNumberChange(s.id, 'food', e.target.value, setStorages, storages)} />
                                                   </div>
                                                   <div>
-                                                      <label className="text-xs text-muted block mb-1">Futter (Unit)</label>
-                                                      <input 
-                                                          type="number" 
-                                                          step="0.1" 
-                                                          className="w-full bg-input-bg rounded p-1.5 text-sm border border-border-color focus:border-accent text-white" 
-                                                          value={s.feed || 0} 
-                                                          onChange={e => handleNumberChange(s.id, 'feed', e.target.value, setStorages, storages)}
-                                                      />
+                                                      <label className="text-[10px] text-muted block">Futter (Unit)</label>
+                                                      <input type="number" step="1" className="w-full bg-input-bg rounded p-1 text-sm text-white" value={s.feed || 0} onChange={e => handleNumberChange(s.id, 'feed', e.target.value, setStorages, storages)} />
                                                   </div>
                                               </>
                                           ) : (
                                                <div className="col-span-2">
-                                                  <label className="text-xs text-muted block mb-1">Wasser (gal)</label>
-                                                  <input 
-                                                      type="number" 
-                                                      step="0.1" 
-                                                      className="w-full bg-input-bg rounded p-1.5 text-sm border border-border-color focus:border-accent text-white" 
-                                                      value={s.water} 
-                                                      onChange={e => handleNumberChange(s.id, 'water', e.target.value, setStorages, storages)}
-                                                  />
+                                                  <label className="text-[10px] text-muted block">Wasser (gal)</label>
+                                                  <input type="number" step="1" className="w-full bg-input-bg rounded p-1 text-sm text-white" value={s.water} onChange={e => handleNumberChange(s.id, 'water', e.target.value, setStorages, storages)} />
                                               </div>
                                           )}
                                       </div>
                                   </div>
                               );
                           })}
-                          {storages.length === 0 && <div className="text-muted text-sm italic text-center p-4">Keine Lager definiert.</div>}
                       </div>
                   </div>
               </div>
           );
       };
-
 
       // ==========================================
       // MAIN APP
@@ -1515,72 +1185,21 @@
           const [log, setLog] = useState(['Optimiertes Tool geladen.']);
           const [result, setResult] = useState('Keine Würfe bisher.');
           const [currentFlow, setCurrentFlow] = useState(null);
-          
-          // Modal State
-          const [modalConfig, setModalConfig] = useState({
-              isOpen: false,
-              type: 'alert',
-              title: '',
-              message: ''
-          });
+          const [modalConfig, setModalConfig] = useState({ isOpen: false, type: 'alert', title: '', message: '' });
 
-          const triggerModal = (type, title, message, onConfirm) => {
-              setModalConfig({
-                  isOpen: true,
-                  type,
-                  title,
-                  message,
-                  onConfirm
-              });
-          };
+          const triggerModal = (type, title, message, onConfirm) => setModalConfig({ isOpen: true, type, title, message, onConfirm });
 
           const loadData = (key, defaultValue) => {
               try {
                   const item = localStorage.getItem(`enc_${key}`);
                   return item ? JSON.parse(item) : defaultValue;
-              } catch (error) {
-                  console.warn(`Error reading localStorage key “${key}”:`, error);
-                  return defaultValue;
-              }
+              } catch (e) { return defaultValue; }
           };
 
-          const [settings, setSettings] = useState(() => loadData('state', {
-              terrain: 'road',
-              pace: 'normal',
-              vehicle: 'no',
-              watchCount: 3,
-              lightHours: 0,
-              watches: Array(3).fill({ name: '', vision: 'none', pp: 12 })
-          }));
-
+          const [settings, setSettings] = useState(() => loadData('state', { terrain: 'road', pace: 'normal', vehicle: 'no', watchCount: 3, lightHours: 0, watches: Array(3).fill({ name: '', vision: 'none', pp: 12 }) }));
           const [matrix, setMatrix] = useState(() => loadData('matrix', JSON.parse(JSON.stringify(DEFAULTS))));
-
-          // --- Resource State ---
-          const [creatures, setCreatures] = useState(() => {
-              const loaded = loadData('creatures', [
-                  { id: '1', name: 'Pferd', size: 'Large', usesFeed: true, conMod: 2, daysWithoutFood: 0, exhaustion: 0 },
-                  { id: '2', name: 'Abenteurer', size: 'Medium', usesFeed: false, conMod: 1, daysWithoutFood: 0, exhaustion: 0 }
-              ]);
-              return loaded.map(c => ({
-                  ...c,
-                  conMod: c.conMod ?? 0,
-                  daysWithoutFood: c.daysWithoutFood ?? 0,
-                  exhaustion: c.exhaustion ?? 0
-              }));
-          });
-          
-          const [storages, setStorages] = useState(() => {
-              const loaded = loadData('storages', [
-                  { id: '1', name: 'Wagen (Essen)', isActive: true, storageType: 'food_feed', maxCapacity: 200, food: 50, water: 0, feed: 7 },
-                  { id: '2', name: 'Wasserfass', isActive: true, storageType: 'water', maxCapacity: 50, food: 0, water: 20, feed: 0 }
-              ]);
-              return loaded.map(s => ({
-                  ...s,
-                  isActive: s.isActive ?? true,
-                  storageType: s.storageType || 'food_feed', 
-                  maxCapacity: s.maxCapacity || 100
-              }));
-          });
+          const [creatures, setCreatures] = useState(() => loadData('creatures', [{ id: '1', name: 'Pferd', size: 'Large', usesFeed: true, conMod: 2, daysWithoutFood: 0, exhaustion: 0 }, { id: '2', name: 'Abenteurer', size: 'Medium', usesFeed: false, conMod: 1, daysWithoutFood: 0, exhaustion: 0 }]));
+          const [storages, setStorages] = useState(() => loadData('storages', [{ id: '1', name: 'Wagen', isActive: true, storageType: 'food_feed', maxCapacity: 200, food: 50, water: 20, feed: 7 }]));
 
           useEffect(() => { localStorage.setItem('enc_state', JSON.stringify(settings)); }, [settings]);
           useEffect(() => { localStorage.setItem('enc_matrix', JSON.stringify(matrix)); }, [matrix]);
@@ -1591,91 +1210,54 @@
           const resetLog = () => { setLog([]); setResult('Log geleert.'); setCurrentFlow(null); };
 
           const resetAll = () => {
-              triggerModal('confirm', 'Alles zurücksetzen', 'Möchtest du wirklich alle Einstellungen, die Matrix und die Ressourcen-Daten zurücksetzen?', () => {
+              triggerModal('confirm', 'Alles zurücksetzen', 'Alles auf Standard zurücksetzen?', () => {
                   localStorage.removeItem('enc_state');
                   localStorage.removeItem('enc_matrix');
-                  setSettings({
-                      terrain: 'road', pace: 'normal', vehicle: 'no', watchCount: 3, lightHours: 0,
-                      watches: Array(3).fill(null).map((_, i) => ({ name: `Wache ${i + 1}`, vision: 'none', pp: 12 }))
-                  });
-                  setMatrix(JSON.parse(JSON.stringify(DEFAULTS)));
-                  addLog('Alle Einstellungen zurückgesetzt.');
+                  location.reload();
               });
           };
 
           const handleTravelRoll = () => {
               resetLog();
-              addLog('--- TRAVEL ROLL START ---');
-              const terrainKey = settings.terrain;
-              const terrainName = TERRAIN_MAP[terrainKey];
-              const ranges = matrix.day[terrainName];
+              const ranges = matrix.day[TERRAIN_MAP[settings.terrain]];
               const d = rnd(100);
-              addLog(`Travel d100 → ${d} (${terrainName})`);
-              addLog(`Bereiche: Hostile ${ranges.hostile[0]}-${ranges.hostile[1]}, Neutral ${ranges.neutral[0]}-${ranges.neutral[1]}, POI ${ranges.poi[0]}-${ranges.poi[1]}`);
-
               let encType = null;
-              if (d >= ranges.hostile[0] && d <= ranges.hostile[1] && ranges.hostile[0] > 0) encType = 'hostile';
-              else if (d >= ranges.neutral[0] && d <= ranges.neutral[1] && ranges.neutral[0] > 0) encType = 'neutral';
-              else if (d >= ranges.poi[0] && d <= ranges.poi[1] && ranges.poi[0] > 0) encType = 'poi';
+              if (d >= ranges.hostile[0] && d <= ranges.hostile[1]) encType = 'hostile';
+              else if (d >= ranges.neutral[0] && d <= ranges.neutral[1]) encType = 'neutral';
+              else if (d >= ranges.poi[0] && d <= ranges.poi[1]) encType = 'poi';
 
               if (!encType) { setResult('Keine Begegnung.'); return; }
-              if (encType === 'poi') { setResult(`POI entdeckt! (d100 ${d})`); addLog('POI — sofort sichtbar.'); return; }
-
-              setResult(`Encounter: ${encType.toUpperCase()} (d100 ${d}) → Stealth-Mechanik startet...`);
-              setCurrentFlow({ step: 'enemyStealthChoice', context: 'day', encounterType: encType, d, terrain: terrainKey, vehicle: settings.vehicle === 'yes' });
+              setResult(`Encounter: ${encType.toUpperCase()} (d100 ${d})`);
+              if(encType !== 'poi') setCurrentFlow({ step: 'enemyStealthChoice', context: 'day', encounterType: encType, d, vehicle: settings.vehicle === 'yes' });
           };
           
           const handleRestRoll = () => {
               resetLog();
-              addLog('--- LONG REST ROLL START ---');
-              const terrainKey = settings.terrain;
-              const terrainName = TERRAIN_MAP[terrainKey];
-              const nightInfo = matrix.night[terrainName];
-              
-              const baseThreshold = Math.max(nightInfo.basis[0], nightInfo.basis[1]);
-              const threshold = baseThreshold + (settings.lightHours * nightInfo.light);
+              const nightInfo = matrix.night[TERRAIN_MAP[settings.terrain]];
+              const threshold = Math.max(nightInfo.basis[0], nightInfo.basis[1]) + (settings.lightHours * nightInfo.light);
               const d = rnd(100);
-              addLog(`Long Rest d100 → ${d} (Schwelle: ${threshold} | Basis: ${baseThreshold}, Licht: ${settings.lightHours}h * ${nightInfo.light})`);
-          
-              if (d > threshold) { setResult('Keine Begegnung während der langen Rast.'); return; }
-          
+              if (d > threshold) { setResult('Keine Begegnung während der Nacht.'); return; }
               const watchRoll = rnd(settings.watches.length);
               const affectedWatch = settings.watches[watchRoll - 1];
-              let effectivePP = affectedWatch.pp;
-              let modifier = 'Normal';
-              if (affectedWatch.vision === 'none') { effectivePP = Math.floor(affectedWatch.pp / 2); modifier = 'PP halbiert (kein Darkvision)'; } 
-              else if (affectedWatch.vision === 'darkvision') { modifier = 'Nachteil auf aktive Checks'; }
-          
-              addLog(`Begegnung! Betroffene Wache: ${affectedWatch.name} (Wurf ${watchRoll}/${settings.watches.length})`);
-              setResult(`Nacht-Encounter: ${affectedWatch.name}!`);
-              setCurrentFlow({
-                  step: 'nightEncounterInfo', context: 'night', encounterType: 'hostile', d, terrain: terrainKey, affectedWatch,
-                  watchPerception: { effectivePP, modifier }
-              });
+              setCurrentFlow({ step: 'nightEncounterInfo', context: 'night', encounterType: 'hostile', d, affectedWatch, watchPerception: { effectivePP: affectedWatch.pp, modifier: 'Normal' } });
           };
 
           return (
               <main className="min-h-screen p-4 md:p-7 pb-20">
                   <Modal config={modalConfig} onClose={() => setModalConfig({...modalConfig, isOpen: false})} />
-
                   <div className="max-w-7xl mx-auto">
-                      <header className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                          <div>
-                              <h1 className="text-2xl font-bold">Random Encounters</h1>
-                              <p className="text-muted text-sm">Spieltisch-Tool & Ressourcen-Tracker</p>
-                          </div>
+                      <header className="mb-6 flex justify-between items-center">
+                          <h1 className="text-2xl font-bold">Random Encounters</h1>
                           <div className="flex bg-card p-1 rounded-lg border border-border-color">
-                              <button onClick={() => setActiveTab('encounters')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'encounters' ? 'bg-accent text-bg-secondary shadow-md' : 'text-muted hover:text-white'}`}>🎲 Begegnungen</button>
-                              <button onClick={() => setActiveTab('resources')} className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'resources' ? 'bg-accent text-bg-secondary shadow-md' : 'text-muted hover:text-white'}`}>🍎 Ressourcen</button>
+                              <button onClick={() => setActiveTab('encounters')} className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'encounters' ? 'bg-accent text-bg-secondary' : 'text-muted'}`}>🎲 Begegnungen</button>
+                              <button onClick={() => setActiveTab('resources')} className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'resources' ? 'bg-accent text-bg-secondary' : 'text-muted'}`}>🍎 Ressourcen</button>
                           </div>
                       </header>
                       
                       {activeTab === 'encounters' ? (
                           <>
                               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                  <div className="lg:col-span-2 flex flex-col gap-4">
-                                     <SettingsCard settings={settings} setSettings={setSettings} onTravelRoll={handleTravelRoll} onRestRoll={handleRestRoll} onResetAll={resetAll} />
-                                  </div>
+                                  <div className="lg:col-span-2"><SettingsCard settings={settings} setSettings={setSettings} onTravelRoll={handleTravelRoll} onRestRoll={handleRestRoll} onResetAll={resetAll} /></div>
                                   <LogCard log={log} result={result} onResetLog={resetLog} />
                               </div>
                               {currentFlow && <FlowPanels flowState={currentFlow} setFlowState={setCurrentFlow} setResult={setResult} addLog={addLog} triggerModal={triggerModal} />}
@@ -1689,12 +1271,7 @@
           );
       };
 
-      // ==========================================
-      // RENDER
-      // ==========================================
-
-      const rootElement = document.getElementById('root');
-      const root = createRoot(rootElement);
+      const root = createRoot(document.getElementById('root'));
       root.render(<React.StrictMode><App /></React.StrictMode>);
     </script>
   </body>
