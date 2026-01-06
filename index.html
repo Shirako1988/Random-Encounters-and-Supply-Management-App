@@ -1084,17 +1084,18 @@
                           
                           <div className="space-y-2">
                               {creatures.map(c => (
-                                  <div key={c.id} className="grid grid-cols-[auto,1fr,auto,80px,30px] gap-2 items-center bg-glass p-2 rounded">
-                                      <div className="flex flex-col gap-0.5">
+                                  <div key={c.id} className="grid grid-cols-[auto,1fr,auto,40px,80px,30px] gap-2 items-center bg-glass p-2 rounded">
+                                      <div className="flex flex-col gap-0.5 min-w-[30px]">
                                           {c.daysWithoutFood > 0 && <span className="text-[10px] text-white bg-orange-500/50 px-1 rounded text-center">🍔{c.daysWithoutFood}</span>}
                                           {c.exhaustion > 0 && <span className="text-[10px] text-white bg-bad px-1 rounded text-center">💀{c.exhaustion}</span>}
                                       </div>
-                                      <input className="bg-transparent text-sm text-white outline-none" value={c.name} onChange={e => updateCreature(c.id, 'name', e.target.value)} placeholder="Name" />
-                                      <button onClick={() => updateCreature(c.id, 'usesFeed', !c.usesFeed)} className={`p-1.5 rounded ${c.usesFeed ? 'bg-yellow-600 text-white' : 'bg-input-bg text-muted'}`}>🐾</button>
+                                      <input className="bg-transparent text-sm text-white outline-none min-w-0" value={c.name} onChange={e => updateCreature(c.id, 'name', e.target.value)} placeholder="Name" />
+                                      <button onClick={() => updateCreature(c.id, 'usesFeed', !c.usesFeed)} title="Tierfutter?" className={`p-1.5 rounded ${c.usesFeed ? 'bg-yellow-600 text-white' : 'bg-input-bg text-muted'}`}>🐾</button>
+                                      <input type="number" title="Constitution Modifier" className="w-full bg-input-bg rounded p-1 text-xs text-center text-white border border-border-color" value={c.conMod} onChange={e => updateCreature(c.id, 'conMod', parseInt(e.target.value) || 0)} />
                                       <select className="bg-bg-secondary text-xs rounded p-1 border border-border-color text-white" value={c.size} onChange={e => updateCreature(c.id, 'size', e.target.value)}>
                                           {Object.keys(CONSUMPTION_RATES).map(size => <option key={size} value={size}>{size}</option>)}
                                       </select>
-                                      <button onClick={() => removeCreature(c.id)} className="text-muted">×</button>
+                                      <button onClick={() => removeCreature(c.id)} className="text-muted hover:text-bad">×</button>
                                   </div>
                               ))}
                           </div>
