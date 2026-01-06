@@ -1103,9 +1103,29 @@
 
                       <div className="bg-card rounded-xl p-4 shadow-lg border border-border-color">
                           <h3 className="text-lg font-bold mb-3">Tagesabschluss</h3>
-                          <div className="text-sm space-y-1 mb-4">
-                              <div className="flex justify-between"><span className="text-muted">Bedarf:</span> <span>🍔 {totalNeeds.food.toFixed(1)} / 🌾 {totalNeeds.feed.toFixed(1)} / 💧 {totalNeeds.water.toFixed(1)}</span></div>
-                              <div className="flex justify-between"><span className="text-muted">Vorrat:</span> <span>🍔 {totalStored.food.toFixed(1)} / 🌾 {totalStored.feed.toFixed(1)} / 💧 {totalStored.water.toFixed(1)}</span></div>
+                          <div className="text-sm space-y-2 mb-4">
+                              <div className="flex justify-between items-center">
+                                  <span className="text-muted">Bedarf:</span> 
+                                  <div className="flex gap-3">
+                                      <span title="Essen">🍔 {totalNeeds.food.toFixed(1)}</span>
+                                      <span title="Futter">🌾 {totalNeeds.feed.toFixed(1)}</span>
+                                      <span title="Wasser">💧 {totalNeeds.water.toFixed(1)}</span>
+                                  </div>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                  <span className="text-muted">Vorrat:</span> 
+                                  <div className="flex gap-3">
+                                      <span className={totalStored.food < totalNeeds.food ? 'text-bad font-bold' : ''} title="Essen">
+                                          🍔 {totalStored.food.toFixed(1)}
+                                      </span>
+                                      <span className={totalStored.feed < totalNeeds.feed ? 'text-bad font-bold' : ''} title="Futter">
+                                          🌾 {totalStored.feed.toFixed(1)}
+                                      </span>
+                                      <span className={totalStored.water < totalNeeds.water ? 'text-bad font-bold' : ''} title="Wasser">
+                                          💧 {totalStored.water.toFixed(1)}
+                                      </span>
+                                  </div>
+                              </div>
                           </div>
                           <button onClick={openRationingModal} disabled={creatures.length === 0} className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-lg">Tagesration verbrauchen</button>
                           {lastStoragesState && <button onClick={handleUndo} className="w-full mt-2 text-muted text-sm hover:text-white transition-colors">Widerrufen</button>}
